@@ -1,0 +1,36 @@
+<form>
+    <h2>Login</h2>
+    <input type="username" placeholder="username" name="username" />
+    <input type="password" placeholder="password" name="password" />
+    <input type="submit" value="Login" />
+    <a href="/signup.html">Signup</a>
+</form>
+
+<script>
+    const form = document.querySelector('form');
+    const username = document.querySelector('[name="username"]');
+    const password = document.querySelector('[name="password"]');
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (username.value && password.value) {
+            return fetch('/login', {
+                method: "POST",
+                mode: "cors",
+                cache: "no-cache",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json; charset=utf-8",
+                },
+                body: JSON.stringify({ username: username.value, password: password.value }),
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.token) {
+                        localStorage.token = result.token;
+                        window.location = './index.html'
+                    }
+                })
+                .catch(error => console.error(`Fetch Error =\n`, error));
+        }
+    })
+</script>

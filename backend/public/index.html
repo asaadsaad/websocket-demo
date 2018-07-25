@@ -1,0 +1,178 @@
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.1.1/css/all.css" integrity="sha384-O8whS3fhG2OnA5Kas0Y9l3cfpmYjapjI0E4theH4iuMD+pLhbf6JI0jIMfYcK3yZ"
+    crossorigin="anonymous">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.0/socket.io.slim.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font: 13px Helvetica, Arial;
+    }
+
+    form {
+        background: #000;
+        padding: 3px;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+    }
+
+    form input {
+        border: 0;
+        padding: 10px;
+        width: 90%;
+        margin-right: .5%;
+    }
+
+    form button {
+        width: 9%;
+        background: rgb(130, 224, 255);
+        border: none;
+        padding: 10px;
+    }
+
+    .me {
+        color: white;
+        background-color: #209cee !important;
+        padding: 7px;
+        border-radius: 20px;
+    }
+
+    .other {
+        color: #fff;
+        background-color: #00d1b2 !important;
+        padding: 7px;
+        border-radius: 20px;
+    }
+
+    li {
+        list-style: none;
+    }
+
+    .mecontainer {
+        text-align: right;
+        margin: 15px;
+    }
+
+    .othercontainer {
+        text-align: left;
+        margin: 15px;
+    }
+
+    .green {
+        color: greenyellow;
+    }
+</style>
+
+<body>
+    <div>
+        <a href="#" id="logout">Logout</a>
+    </div>
+    <div>
+        <h3>Online Users</h3>
+        <ul id="online_users"></ul>
+    </div>
+    <ul id="messages"></ul>
+    <form action="">
+        <input id="m" autocomplete="off" />
+        <button>Send</button>
+    </form>
+</body>
+
+<script>
+    if (!localStorage.token || localStorage.token === 'undefined') window.location = './login.html';
+
+
+
+    const base64Url = localStorage.token.split('.')[1];
+    const base64 = base64Url.replace('-', '+').replace('_', '/');
+    const token_plain = JSON.parse(window.atob(base64));
+    console.log(token_plain);
+
+    const socket = io.connect('http://localhost:3000', {
+        transportOptions: {
+            polling: {
+                extraHeaders: {
+                    Authorization: `Bearer ${localStorage.token}`
+                }
+            }
+        }
+    });
+    const m = document.querySelector('#m');
+    const messages = document.querySelector('#messages');
+    const logout = document.querySelector('#logout');
+
+    document.querySelector('form').addEventListener('submit', function (e) {
+        socket.emit('sending_chat_message', { from: token_plain.username, message: m.value });
+        createLi({ from: token_plain.username, message: m.value }, 'me');
+        m.value = '';
+        e.preventDefault();
+    });
+
+    socket.on('broadcast_chat_message', function (data) {
+        console.log('broadcast from server', data);
+        createLi(data)
+    });
+
+    // socket.on('someone is typing', function (data) {
+    //     console.log('someone is typing', data);
+    //     createLi('someone is typing')
+    // });
+    // m.addEventListener('input', function () {
+    //     if (m.value) {
+    //         socket.emit('I am typing', { typing: true })
+    //     }
+    // });
+
+    function createLi(data, me) {
+        const li = document.createElement('li');
+        const span = document.createElement('span');
+
+        if (me) {
+            li.className = 'mecontainer'
+            span.className = 'me';
+        } else {
+            li.className = 'othercontainer'
+            span.className = 'other'
+        }
+        span.innerText = `${data.from}: ${data.message}`;
+        li.appendChild(span);
+        messages.appendChild(li);
+    }
+
+    logout.addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.token = '';
+        window.location = 'login.html'
+    })
+
+    const online_users = document.querySelector('#online_users');
+    fetch('http://localhost:3000/online_users')
+        .then(res => res.json())
+        .then(results => results.data.map(user => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            const i = document.createElement('i');
+            a.href = '#'
+            a.setAttribute('data-username', user.username)
+            a.innerText = `${user.username}`
+            i.classList = 'fas fa-circle fa-circle-thin green';
+            li.appendChild(i)
+            li.appendChild(a);
+
+            online_users.appendChild(li)
+        }))
+        .then(_ => {
+            Array.from(document.querySelectorAll('[data-username]')).map(online_user_dom => {
+                online_user_dom.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    m.value = `@${this.getAttribute('data-username')} `
+                })
+            })
+        })
+
+</script>
